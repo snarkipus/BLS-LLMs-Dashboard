@@ -66,11 +66,22 @@ npm run test:watch path/to/test.test.ts
 
 - Use `$state()` for reactive state instead of `let` variables
 - Use `$derived()` for computed values instead of `$:` statements
-- Use `$effect()` for side effects (API calls, DOM manipulation)
+- Use `$effect()` for side effects (API calls, DOM manipulation) - only run in browser
 - Use `$props()` for component props (destructure: `let { prop } = $props()`)
-- Use `$bindable()` for two-way bound props
-- Use `$inspect()` for debugging state changes
+- Use `$bindable()` for two-way bound props - use sparingly for predictable data flow
+- Use `$inspect()` for debugging state changes (development only, becomes noop in production)
 - Event handlers: `onclick`, `onchange`, etc. (native events, no `on:` prefix)
+- Use `$derived.by()` for complex derivations that don't fit in a short expression
+- Use `onMount()` for one-time initialization with cleanup on unmount
+- Use `tick()` to ensure DOM is updated before continuing
+- Use `$state.raw()` for large immutable arrays/objects that won't be mutated
+- Use `$state.snapshot()` when passing state to external libraries that expect plain objects
+- Use `$state.eager()` sparingly for immediate UI feedback in await expressions
+- Export reactive logic from `.svelte.ts` files, but don't reassign exported state
+- Prefer derived state over `$effect` for synchronizing state (avoid effect loops)
+- Use `{#snippet}` for reusable markup blocks (replaces deprecated slots)
+- Use `{@render}` to render snippets
+- Use `$props.id()` for unique component instance IDs (useful for form labels)
 
 ### Component Structure
 
@@ -112,11 +123,116 @@ npm run test:watch path/to/test.test.ts
 
 ### D3 Integration
 
+#### Performance Best Practices
+
 - Use `onMount` lifecycle hook for D3 initialization
 - Clean up D3 selections in onMount return function
 - Use dynamic import for D3 to avoid type issues: `import('d3').then(d3 => ...)`
 - Store D3 selections in variables for cleanup
 - Use reactive state to trigger D3 updates
+
+#### Enter-Update-Exit Pattern
+
+```svelte
+<script>
+  let { data } = $props();
+  let svgContainer: HTMLElement;
+
+  onMount(() => {
+    import('d3').then((d3) => {
+      const svg = d3.select(svgContainer).append('svg');
+
+      // ENTER phase
+      const circles = svg
+        .selectAll('circle')
+        .data(data)
+        .enter()
+        .append('circle')
+        .attr('cx', (d) => xScale(d.x))
+        .attr('cy', (d) => yScale(d.y))
+        .attr('r', 5);
+
+      // Return cleanup
+      return () => {
+        d3.select(svgContainer).selectAll('*').remove();
+      };
+    });
+  });
+</script>
+```
+
+#### Method Chaining
+
+```javascript
+// GOOD: Chain methods for readability
+const bars = svg
+  .selectAll('.bar')
+  .data(data)
+  .enter()
+  .append('rect')
+  .attr('x', (d) => xScale(d.x))
+  .attr('y', (d) => yScale(d.y));
+
+// AVOID: Separate statements
+const bars = svg.selectAll('.bar').data(data).enter();
+bars.append('rect');
+bars.attr('x', (d) => xScale(d.x));
+bars.attr('y', (d) => yScale(d.y));
+```
+
+#### Data Optimization
+
+- Simplify large datasets before passing to D3
+- Use `d3.stratify()` for hierarchical data
+- Leverage D3's data helpers: `d3.rollup()`, `d3.group()`, `d3.sort()`
+- Consider canvas instead of SVG for large datasets (>10k points)
+- Use `.data()` with key function for efficient updates
+
+#### Scales and Axes
+
+```javascript
+// Explicit scale creation
+const xScale = d3
+  .scaleLinear()
+  .domain([0, d3.max(data, (d) => d.x)])
+  .range([0, width]);
+
+// Add axes with proper ticks
+const xAxis = d3.axisBottom(xScale).ticks(10).tickSizeOuter(0);
+```
+
+#### Responsive Design
+
+- Use `viewBox` instead of hardcoded dimensions
+- Update chart on window resize with `onMount` + cleanup
+- Consider `ResizeObserver` for container changes
+
+#### Common Patterns
+
+```javascript
+// Arrow functions for pure transformations
+const formatDate = (d) => new Date(d).toLocaleDateString();
+
+// Data binding with join()
+svg
+  .selectAll('text')
+  .data(data)
+  .join(
+    (enter) => enter.append('text').text((d) => d.label),
+    (update) => update.text((d) => d.label),
+    (exit) => exit.remove()
+  );
+
+// Use local variables in D3 selections
+const chart = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+```
+
+#### Avoid
+
+- Don't update state inside `$effect` (use derived instead)
+- Avoid nested `d3.select()` calls inside loops
+- Don't hardcode chart dimensions - use reactive bindings
+- Don't mutate data passed to D3 - create copies if needed
 
 ### LayerCake Integration
 
