@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext('LayerCake') as any;
+  const ctx = getContext<LayerCakeContext>('LayerCake');
   const { width, height, xScale, yRange } = ctx;
 
   let {
@@ -10,7 +11,7 @@
     tickMarkLength = 6,
     baseline = false,
     snapLabels = false,
-    format = (d: any) => d,
+    format = (d: unknown) => String(d),
     ticks = undefined,
     tickGutter = 0,
     dx = 0,

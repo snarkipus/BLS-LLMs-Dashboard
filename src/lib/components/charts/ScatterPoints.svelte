@@ -1,7 +1,10 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext('LayerCake') as any;
+  type DataPoint = { x: number; y: number };
+
+  const ctx = getContext<LayerCakeContext<DataPoint>>('LayerCake');
   const { data, xGet, yGet, xScale, yScale } = ctx;
 
   let { r = 5, fill = '#0cf', stroke = '#000', strokeWidth = 0, fillOpacity = 1 } = $props();

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext('LayerCake') as any;
+  const ctx = getContext<LayerCakeContext>('LayerCake');
   const { height } = ctx;
 
   interface Props {
@@ -10,6 +11,7 @@
     fontSize?: number;
     fontWeight?: string;
     fill?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }
 

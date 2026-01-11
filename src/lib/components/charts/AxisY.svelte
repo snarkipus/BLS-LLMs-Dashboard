@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext('LayerCake') as any;
+  const ctx = getContext<LayerCakeContext>('LayerCake');
   const { xRange, yScale, width } = ctx;
 
   let {
@@ -33,7 +34,8 @@
       : isBandwidth
         ? $yScale.domain()
         : typeof ticks === 'function'
-          ? (ticks as (v: any[]) => any[])($yScale.ticks())
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (ticks as (v: any[]) => any[])($yScale.ticks())
           : $yScale.ticks(ticks)
   );
 
@@ -41,6 +43,7 @@
     Math.max(
       10,
       Math.max(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...tickVals.map((d: any) => format(d).toString().split('').reduce(calcStringLength, 0))
       )
     )
@@ -58,6 +61,7 @@
 
   let labelX = $derived(x1 - labelGutter);
   let y = $derived(isBandwidth ? $yScale.bandwidth() / 2 : 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let maxTickValPx = $derived(Math.max(...tickVals.map((d: any) => $yScale(d))));
 
   let yRange = $derived($yScale.range());

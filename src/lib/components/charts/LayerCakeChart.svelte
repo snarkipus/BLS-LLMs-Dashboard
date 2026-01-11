@@ -14,14 +14,21 @@
 </script>
 
 <div class="w-full h-80 bg-white p-4 rounded-lg shadow">
-  <LayerCake {data} x="x" y="y" padding={{ top: 20, right: 20, bottom: 60, left: 70 }}>
+  <LayerCake
+    {data}
+    yDomain={[0, null]}
+    xDomain={[0, null]}
+    x="x"
+    y="y"
+    padding={{ top: 20, right: 20, bottom: 45, left: 45 }}
+  >
     <Svg>
       <ChartTitle text="My Awesome Scatter Plot" offset={40} fontSize={22} />
       <AxisX gridlines={false} baseline={true} tickMarks={true} />
       <AxisY gridlines={false} baseline={true} tickMarks={true} />
       <ScatterPoints r={5} fill="#3b82f6" fillOpacity={0.7} />
       <XAxisTitle text="X Axis Title" offset={40} />
-      <YAxisTitle text="Y Axis Title" offset={45} />
+      <YAxisTitle text="Y Axis Title" offset={40} />
     </Svg>
   </LayerCake>
 </div>
