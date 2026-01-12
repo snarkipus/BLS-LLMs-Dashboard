@@ -20,7 +20,7 @@ size, and a regression trendline to provide visual context.
 
 ## Data Sources
 
-- `src/lib/stores/oews_2024_gpt_exposure_soc2018.json`: Occupation-level exposure and wage data.
+- `static/data/oews_2024_gpt_exposure_soc2018.json`: Occupation-level exposure and wage data (fetched at runtime).
 - `src/lib/types/occpoints.ts`: Type definition for occupation points.
 
 ## Visualization Encoding
