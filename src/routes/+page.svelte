@@ -16,6 +16,39 @@
     'Some college, no degree': '#f59e0b',
   };
 
+  const legendItems = [
+    {
+      label: "Doctoral & Master's degree",
+      color: educationColorMap['Doctoral or professional degree'],
+      key: 'doctoral-masters',
+      categories: ['Doctoral or professional degree', "Master's degree"],
+    },
+    {
+      label: "Bachelor & Associate's degree",
+      color: educationColorMap["Bachelor's degree"],
+      key: 'bachelor-associate',
+      categories: ["Bachelor's degree", "Associate's degree"],
+    },
+    {
+      label: 'Postsecondary non-degree award',
+      color: educationColorMap['Postsecondary nondegree award'],
+      key: 'postsecondary',
+      categories: ['Postsecondary nondegree award'],
+    },
+    {
+      label: 'No formal education',
+      color: educationColorMap['No formal educational credential'],
+      key: 'no-formal',
+      categories: ['No formal educational credential'],
+    },
+    {
+      label: 'High school diploma or equivalent',
+      color: educationColorMap['High school diploma or equivalent'],
+      key: 'high-school',
+      categories: ['High school diploma or equivalent', 'Some college, no degree'],
+    },
+  ];
+
   const getEducationColor = (education?: string) =>
     education ? (educationColorMap[education] ?? '#94a3b8') : '#94a3b8';
 
@@ -34,6 +67,7 @@
     y: point.median_annual_wage,
     label: point.soc_title,
     color: getEducationColor(point.education),
+    category: point.education ?? 'Other',
     r: radiusScale(point.employment),
     wage: point.median_annual_wage,
     probability: point.exposure_human_gamma,
@@ -64,6 +98,7 @@
         {yDomain}
         {xTicks}
         {yTicks}
+        {legendItems}
       />
     </section>
   </div>
