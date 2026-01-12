@@ -1,51 +1,61 @@
-# sv
+# LLM Exposure Scatterplot Demo
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+## Overview
 
-## Creating a project
+This project renders an interactive scatterplot comparing LLM exposure to median annual wages across
+occupations. It uses the 2024 OEWS exposure dataset and layers in education categories, employment
+size, and a regression trendline to provide visual context.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Screenshot
+
+![LLM exposure scatterplot](./static/llm-exposure.png)
+
+## Tech Stack
+
+- **Svelte 5** + **SvelteKit** (SPA mode)
+- **TypeScript**
+- **LayerCake** for chart layout
+- **D3** for scaling and regression helpers
+- **Tailwind CSS** for styling
+
+## Data Sources
+
+- `src/lib/stores/oews_2024_gpt_exposure_soc2018.json`: Occupation-level exposure and wage data.
+- `src/lib/types/occpoints.ts`: Type definition for occupation points.
+
+## Visualization Encoding
+
+- **X axis**: `exposure_human_gamma` (0–1), labeled as likelihood of being affected.
+- **Y axis**: `median_annual_wage` on a log scale.
+- **Point color**: education category.
+- **Point size**: employment count (sqrt scale).
+- **Trendline**: weighted log-space regression using employment as weights.
+
+## Interactions
+
+- **Hover**: tooltip shows occupation, income, probability, and employment.
+- **Legend hover**: temporarily filters points and hides the trendline.
+- **Legend click**: locks one or more categories; click again to clear.
+
+## Development
+
+Install dependencies and start the dev server:
 
 ```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Quality Checks
 
-To create a production version of your app:
+```sh
+npm run lint
+npm run check
+```
+
+## Build
 
 ```sh
 npm run build
+npm run preview
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-
-## Scatterplot Trendline
-
-The chart renders a regression trendline in `src/lib/components/charts/LayerCakeChart.svelte` using
-log-transformed wages. Because the y-axis uses a log scale, the regression is computed on
-`log10(wage)` and then converted back to linear values for the line endpoints before rendering. The
-implementation:
-
-- Filters points to finite `x` values and positive `y` values (log scale requirement).
-- Uses a weighted least-squares fit on `x` and `log10(y)` with `employment` as the weight.
-- Extrapolates the line between the min/max x-domain bounds.
-- Computes a weighted R² in log space (used for internal diagnostics).
-- Renders the line via `src/lib/components/charts/RegressionLine.svelte`.
