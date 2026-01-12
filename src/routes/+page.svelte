@@ -90,7 +90,7 @@
     <section>
       <LayerCakeChart
         data={scatterData}
-        title="Which Occupations Are Most Exposed to LLMs—and How Much Do They Pay?"
+        title="Which Occupations Are Most Exposed to LLMs ... and How Much Do They Pay?"
         xLabelLeft="← Least likely to be effected"
         xLabelRight="Most likely to be effected →"
         yLabel="Average annual wage"
