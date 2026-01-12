@@ -16,6 +16,17 @@
     tickGutter = 0,
     dx = 0,
     dy = 12,
+  }: {
+    tickMarks?: boolean;
+    gridlines?: boolean;
+    tickMarkLength?: number;
+    baseline?: boolean;
+    snapLabels?: boolean;
+    format?: (d: unknown) => string;
+    ticks?: number | number[] | ((values: number[]) => number[]);
+    tickGutter?: number;
+    dx?: number;
+    dy?: number;
   } = $props();
 
   function textAnchor(i: number, sl: boolean) {
@@ -80,7 +91,7 @@
 
   line,
   .tick line {
-    stroke: #aaa;
+    stroke: #e2e8f0;
     stroke-dasharray: 2;
   }
 

@@ -11,6 +11,8 @@
     fontSize?: number;
     fontWeight?: string;
     fill?: string;
+    align?: 'left' | 'center' | 'right';
+    inset?: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }
@@ -21,15 +23,20 @@
     fontSize = 20,
     fontWeight = 'bold',
     fill = '#222',
+    align = 'center',
+    inset = 0,
     ...restProps
   }: Props = $props();
+
+  let titleX = $derived(align === 'left' ? inset : align === 'right' ? $width - inset : $width / 2);
+  let anchor = $derived(align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle');
 </script>
 
 {#if text}
   <text
-    x={$width / 2}
+    x={titleX}
     y={-offset}
-    text-anchor="middle"
+    text-anchor={anchor}
     dominant-baseline="hanging"
     font-size={fontSize}
     font-weight={fontWeight}
