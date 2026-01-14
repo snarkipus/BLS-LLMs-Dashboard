@@ -5,18 +5,7 @@
   const ctx = getContext<LayerCakeContext>('LayerCake');
   const { width, height, xScale, yRange } = ctx;
 
-  let {
-    tickMarks = false,
-    gridlines = true,
-    tickMarkLength = 6,
-    baseline = false,
-    snapLabels = false,
-    format = (d: unknown) => String(d),
-    ticks = undefined,
-    tickGutter = 0,
-    dx = 0,
-    dy = 12,
-  }: {
+  interface AxisXProps {
     tickMarks?: boolean;
     gridlines?: boolean;
     tickMarkLength?: number;
@@ -27,14 +16,31 @@
     tickGutter?: number;
     dx?: number;
     dy?: number;
-  } = $props();
+  }
 
-  function textAnchor(i: number, sl: boolean) {
-    if (sl === true) {
-      if (i === 0) {
+  function defaultFormat(value: unknown): string {
+    return String(value);
+  }
+
+  let {
+    tickMarks = false,
+    gridlines = true,
+    tickMarkLength = 6,
+    baseline = false,
+    snapLabels = false,
+    format = defaultFormat,
+    ticks = undefined,
+    tickGutter = 0,
+    dx = 0,
+    dy = 12,
+  }: AxisXProps = $props();
+
+  function textAnchor(index: number, shouldSnap: boolean): string {
+    if (shouldSnap === true) {
+      if (index === 0) {
         return 'start';
       }
-      if (i === tickVals.length - 1) {
+      if (index === tickVals.length - 1) {
         return 'end';
       }
     }
@@ -43,19 +49,30 @@
 
   let tickLen = $derived(tickMarks === true ? tickMarkLength : 0);
 
+  // `xScale` from LayerCake uses bandwidth when it's a band scale.
   let isBandwidth = $derived(typeof $xScale.bandwidth === 'function');
 
-  let tickVals = $derived(
-    Array.isArray(ticks)
-      ? ticks
-      : isBandwidth
-        ? $xScale.domain()
-        : typeof ticks === 'function'
-          ? ticks($xScale.ticks())
-          : $xScale.ticks(ticks)
-  );
+  // Resolve tick values once, keeping band scales aligned with their domain.
+  let tickVals = $derived.by((): unknown[] => {
+    if (Array.isArray(ticks)) {
+      return ticks;
+    }
+    if (isBandwidth) {
+      return $xScale.domain();
+    }
+    if (typeof ticks === 'function') {
+      return ticks($xScale.ticks());
+    }
+    return $xScale.ticks(ticks);
+  });
 
   let halfBand = $derived(isBandwidth ? $xScale.bandwidth() / 2 : 0);
+
+  let axisY = $derived(Math.max(...$yRange));
+
+  function getTickTransform(tick: unknown): string {
+    return `translate(${$xScale(tick)},${axisY})`;
+  }
 </script>
 
 <g class="axis x-axis" class:snapLabels>
@@ -64,7 +81,7 @@
   {/if}
 
   {#each tickVals as tick, i (tick)}
-    <g class="tick tick-{i}" transform="translate({$xScale(tick)},{Math.max(...$yRange)})">
+    <g class={`tick tick-${i}`} transform={getTickTransform(tick)}>
       {#if gridlines === true}
         <line class="gridline" x1={halfBand} x2={halfBand} y1={-$height} y2="0" />
       {/if}
@@ -77,9 +94,9 @@
           y2={tickGutter + tickLen}
         />
       {/if}
-      <text x={halfBand} y={tickGutter + tickLen} {dx} {dy} text-anchor={textAnchor(i, snapLabels)}
-        >{format(tick)}</text
-      >
+      <text x={halfBand} y={tickGutter + tickLen} {dx} {dy} text-anchor={textAnchor(i, snapLabels)}>
+        {format(tick)}
+      </text>
     </g>
   {/each}
 </g>

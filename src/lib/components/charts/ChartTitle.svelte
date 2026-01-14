@@ -3,7 +3,7 @@
   import type { LayerCakeContext } from '$lib/types/layercake';
 
   const ctx = getContext<LayerCakeContext>('LayerCake');
-  const { width } = ctx;
+  const { width: chartWidth } = ctx;
 
   interface Props {
     text?: string;
@@ -28,8 +28,30 @@
     ...restProps
   }: Props = $props();
 
-  let titleX = $derived(align === 'left' ? inset : align === 'right' ? $width - inset : $width / 2);
-  let anchor = $derived(align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle');
+  // Compute title position/anchor based on alignment.
+  let titleX = $derived.by(() => {
+    if (align === 'left') {
+      return inset;
+    }
+
+    if (align === 'right') {
+      return $chartWidth - inset;
+    }
+
+    return $chartWidth / 2;
+  });
+
+  let anchor = $derived.by(() => {
+    if (align === 'left') {
+      return 'start';
+    }
+
+    if (align === 'right') {
+      return 'end';
+    }
+
+    return 'middle';
+  });
 </script>
 
 {#if text}

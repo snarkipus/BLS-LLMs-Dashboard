@@ -6,9 +6,67 @@
   type FillAccessor = (d: DataPoint) => string;
   type RadiusAccessor = (d: DataPoint) => number;
   type HoverHandler = (d: DataPoint, event: MouseEvent) => void;
-  type ActiveAccessor = (d: DataPoint) => boolean;
-  type VisibleAccessor = (d: DataPoint) => boolean;
+  type BooleanAccessor = (d: DataPoint) => boolean;
+  type ActiveAccessor = BooleanAccessor;
+  type VisibleAccessor = BooleanAccessor;
 
+  interface ScatterPointsProps {
+    r?: number | RadiusAccessor;
+    fill?: string | FillAccessor;
+    stroke?: string;
+    strokeWidth?: number;
+    fillOpacity?: number;
+    onHover?: HoverHandler;
+    onLeave?: () => void;
+    isActive?: ActiveAccessor;
+    isVisible?: VisibleAccessor;
+    activeStroke?: string;
+    activeStrokeWidth?: number;
+    activeRadiusOffset?: number;
+  }
+
+  function resolveAccessor<TValue>(
+    value: TValue | ((d: DataPoint) => TValue)
+  ): (d: DataPoint) => TValue {
+    if (typeof value === 'function') {
+      return value as (d: DataPoint) => TValue;
+    }
+
+    return function constantAccessor(): TValue {
+      return value;
+    };
+  }
+
+  function resolveBooleanAccessor(
+    value: BooleanAccessor | undefined,
+    fallback: boolean
+  ): BooleanAccessor {
+    if (typeof value === 'function') {
+      return value;
+    }
+
+    return function constantAccessor(): boolean {
+      return fallback;
+    };
+  }
+
+  function getScaleOffset(scale: { bandwidth?: () => number } | null): number {
+    if (!scale?.bandwidth) {
+      return 0;
+    }
+
+    return scale.bandwidth() / 2;
+  }
+
+  function handleHover(d: DataPoint, event: MouseEvent): void {
+    onHover?.(d, event);
+  }
+
+  function handleLeave(): void {
+    onLeave?.();
+  }
+
+  // LayerCake context provides scale accessors and data store.
   const ctx = getContext<LayerCakeContext<DataPoint>>('LayerCake');
   const { data, xGet, yGet, xScale, yScale } = ctx;
 
@@ -25,37 +83,16 @@
     activeStroke = '#ffffff',
     activeStrokeWidth = 2,
     activeRadiusOffset = 2,
-  }: {
-    r?: number | RadiusAccessor;
-    fill?: string | FillAccessor;
-    stroke?: string;
-    strokeWidth?: number;
-    fillOpacity?: number;
-    onHover?: HoverHandler;
-    onLeave?: () => void;
-    isActive?: ActiveAccessor;
-    isVisible?: VisibleAccessor;
-    activeStroke?: string;
-    activeStrokeWidth?: number;
-    activeRadiusOffset?: number;
-  } = $props();
+  }: ScatterPointsProps = $props();
 
-  let fillAccessor = $derived(typeof fill === 'function' ? fill : (_: DataPoint) => fill);
-  let radiusAccessor = $derived(typeof r === 'function' ? r : (_: DataPoint) => r);
-  let activeAccessor = $derived(
-    typeof isActive === 'function' ? isActive : (_: DataPoint) => false
-  );
-  let visibleAccessor = $derived(
-    typeof isVisible === 'function' ? isVisible : (_: DataPoint) => true
-  );
+  let fillAccessor = $derived(resolveAccessor(fill));
+  let radiusAccessor = $derived(resolveAccessor(r));
+  let activeAccessor = $derived(resolveBooleanAccessor(isActive, false));
+  let visibleAccessor = $derived(resolveBooleanAccessor(isVisible, true));
 
-  const handleHover = (d: DataPoint, event: MouseEvent) => {
-    onHover?.(d, event);
-  };
-
-  const handleLeave = () => {
-    onLeave?.();
-  };
+  // Center band scales so points align with bars/columns.
+  let xCenterOffset = $derived(getScaleOffset($xScale));
+  let yCenterOffset = $derived(getScaleOffset($yScale));
 </script>
 
 <g class="scatter-group">
@@ -64,8 +101,8 @@
     {@const visible = visibleAccessor(d)}
     {#if active}
       <circle
-        cx={$xGet(d) + ($xScale.bandwidth ? $xScale.bandwidth() / 2 : 0)}
-        cy={$yGet(d) + ($yScale.bandwidth ? $yScale.bandwidth() / 2 : 0)}
+        cx={$xGet(d) + xCenterOffset}
+        cy={$yGet(d) + yCenterOffset}
         r={radiusAccessor(d) + activeRadiusOffset}
         fill="none"
         stroke={activeStroke}
@@ -76,8 +113,8 @@
     {/if}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <circle
-      cx={$xGet(d) + ($xScale.bandwidth ? $xScale.bandwidth() / 2 : 0)}
-      cy={$yGet(d) + ($yScale.bandwidth ? $yScale.bandwidth() / 2 : 0)}
+      cx={$xGet(d) + xCenterOffset}
+      cy={$yGet(d) + yCenterOffset}
       r={radiusAccessor(d)}
       fill={fillAccessor(d)}
       {stroke}

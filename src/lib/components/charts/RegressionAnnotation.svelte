@@ -13,8 +13,9 @@
     align?: 'left' | 'right';
   };
 
-  const ctx = getContext<LayerCakeContext>('LayerCake');
-  const { width } = ctx;
+  // LayerCake provides chart dimensions via context stores.
+  const layerCake = getContext<LayerCakeContext>('LayerCake');
+  const { width } = layerCake;
 
   let {
     lines,
@@ -27,8 +28,9 @@
     align = 'right',
   }: Props = $props();
 
-  let anchor = $derived(align === 'right' ? 'end' : 'start');
-  let x = $derived(align === 'right' ? $width - inset : inset);
+  let isRightAligned = $derived(align === 'right');
+  let anchor = $derived(isRightAligned ? 'end' : 'start');
+  let x = $derived(isRightAligned ? $width - inset : inset);
 </script>
 
 {#if lines.length > 0}

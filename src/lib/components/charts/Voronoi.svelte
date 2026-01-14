@@ -6,28 +6,23 @@
   import type { LayerCakeContext } from '$lib/types/layercake';
 
   type Point = [number, number] & { data?: unknown };
+  type HoverHandler = (event: MouseEvent, point: Point) => void;
   type Props = {
     stroke?: string;
-    onmouseover?: (event: MouseEvent, point: Point) => void;
+    onmouseover?: HoverHandler;
     isVisible?: (datum: unknown) => boolean;
   };
 
-  const { data, xGet, yGet, width, height } = getContext<LayerCakeContext>('LayerCake');
+  // LayerCake provides stores for data, accessors, and dimensions.
+  const layerCake = getContext<LayerCakeContext>('LayerCake');
+  const { data, xGet, yGet, width, height } = layerCake;
 
-  let { stroke, onmouseover = () => {}, isVisible = () => true }: Props = $props();
+  let { stroke, onmouseover = noopHover, isVisible = alwaysVisible }: Props = $props();
 
-  let points = $derived(
-    $data
-      .filter((datum: unknown) => isVisible(datum))
-      .map((datum: unknown) => {
-        const point: Point = [$xGet(datum), $yGet(datum)];
-        point.data = datum;
-        return point;
-      })
-      .filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]))
-  );
+  let points = $derived($data.filter(isVisibleDatum).map(createPoint).filter(isFinitePoint));
 
-  let uniquePoints = $derived(uniques(points, (point: Point) => point.join(), false) ?? []);
+  // Deduplicate to keep Voronoi stable when data repeats.
+  let uniquePoints = $derived(uniques(points, pointKey, false) ?? []);
   let voronoi = $derived.by(() => {
     if (!$width || !$height || $width <= 0 || $height <= 0 || uniquePoints.length === 0) {
       return null;
@@ -36,9 +31,33 @@
     return Delaunay.from(uniquePoints).voronoi([0, 0, $width, $height]);
   });
 
-  const handleHover = (event: MouseEvent, point: Point) => {
+  function noopHover(_event: MouseEvent, _point: Point): void {}
+
+  function alwaysVisible(): boolean {
+    return true;
+  }
+
+  function isVisibleDatum(datum: unknown): boolean {
+    return isVisible(datum);
+  }
+
+  function createPoint(datum: unknown): Point {
+    const point: Point = [$xGet(datum), $yGet(datum)];
+    point.data = datum;
+    return point;
+  }
+
+  function isFinitePoint(point: Point): boolean {
+    return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+  }
+
+  function pointKey(point: Point): string {
+    return point.join();
+  }
+
+  function handleHover(event: MouseEvent, point: Point): void {
     onmouseover?.(event, point);
-  };
+  }
 </script>
 
 {#if voronoi}
