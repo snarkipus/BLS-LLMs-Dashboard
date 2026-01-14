@@ -64,9 +64,23 @@
     education ? (educationColorMap[education] ?? '#94a3b8') : '#94a3b8';
 
   const DATA_URL = '/data/oews_2024_gpt_exposure_soc2018.json';
+  const RADIAL_LEGEND_VALUES = [500_000, 100_000, 7_500];
 
   let occPointData = $state<OccPoint[] | null>(null);
   let loadError = $state<string | null>(null);
+
+  function buildRadialLegendValues(values: number[]): number[] {
+    if (!values.length) {
+      return [];
+    }
+
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    return RADIAL_LEGEND_VALUES.filter(
+      (value) => Number.isFinite(value) && value >= minValue && value <= maxValue
+    ).sort((first, second) => second - first);
+  }
 
   onMount(async () => {
     try {
@@ -89,14 +103,33 @@
   const xDomain: [number, number] = [-0.1, 1.1];
   const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
 
-  let scatterData = $derived.by((): ScatterDatum[] => {
+  let employmentValues = $derived.by((): number[] => {
     if (!occPointData) return [];
+    return occPointData.map((point) => point.employment).filter((value) => Number.isFinite(value));
+  });
 
-    const employmentValues = occPointData.map((point) => point.employment);
+  let radiusScale = $derived.by(() => {
+    if (!employmentValues.length) return null;
+
     const minEmployment = Math.min(...employmentValues);
     const maxEmployment = Math.max(...employmentValues);
 
-    const radiusScale = scaleSqrt().domain([minEmployment, maxEmployment]).range([3, 30]);
+    return scaleSqrt().domain([minEmployment, maxEmployment]).range([3, 30]);
+  });
+
+  let radialLegendScale = $derived.by(() => {
+    if (!employmentValues.length) return null;
+
+    const minEmployment = Math.min(...employmentValues);
+    const maxEmployment = Math.max(...employmentValues);
+
+    return scaleSqrt().domain([minEmployment, maxEmployment]).range([4, 52]);
+  });
+
+  let radialLegendValues = $derived.by(() => buildRadialLegendValues(employmentValues));
+
+  let scatterData = $derived.by((): ScatterDatum[] => {
+    if (!occPointData || !radiusScale) return [];
 
     return occPointData.map((point) => ({
       x: point.exposure_human_gamma,
@@ -164,6 +197,14 @@
           {xTicks}
           {yTicks}
           {legendItems}
+          radiusScale={radiusScale ?? undefined}
+          radialLegendScale={radialLegendScale ?? undefined}
+          {radialLegendValues}
+          radialLegendLabel="Employment"
+          radialLegendAlign="left"
+          radialLegendInset={40}
+          radialLegendY={60}
+          radialLegendX={40}
         />
       {/if}
     </section>
