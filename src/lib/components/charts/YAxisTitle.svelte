@@ -2,12 +2,8 @@
   import { getContext } from 'svelte';
   import type { LayerCakeContext } from '$lib/types/layercake';
 
-  function getLayerCakeContext(): LayerCakeContext {
-    return getContext<LayerCakeContext>('LayerCake');
-  }
-
   // LayerCake provides reactive stores for chart dimensions and scales.
-  const layerCake = getLayerCakeContext();
+  const layerCake = getContext<LayerCakeContext>('LayerCake');
   const { height, width, yRange } = layerCake;
 
   interface Props {
