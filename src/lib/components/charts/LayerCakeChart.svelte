@@ -83,18 +83,34 @@
   let activeLegendKey = $state<string | null>(null);
   let selectedLegendKeys = $state<string[]>([]);
 
-  function getVisibleLegendCategories(): string[] | null {
-    const keys = selectedLegendKeys.length
-      ? selectedLegendKeys
-      : activeLegendKey
-        ? [activeLegendKey]
-        : null;
-
-    if (!keys) {
-      return null;
+  function getOrderedLegendItems(): LegendItem[] {
+    const index = legendItems.findIndex((item) => item.label === 'No formal education');
+    if (index === -1 || index === legendItems.length - 1) {
+      return legendItems;
     }
 
-    return legendItems.filter((item) => keys.includes(item.key)).flatMap((item) => item.categories);
+    const items = [...legendItems];
+    const [match] = items.splice(index, 1);
+    items.push(match);
+    return items;
+  }
+
+  let orderedLegendItems = $derived.by(getOrderedLegendItems);
+
+  function getVisibleLegendCategories(): string[] | null {
+    if (selectedLegendKeys.length) {
+      return legendItems
+        .filter((item) => selectedLegendKeys.includes(item.key))
+        .flatMap((item) => item.categories);
+    }
+
+    if (activeLegendKey) {
+      return legendItems
+        .filter((item) => item.key === activeLegendKey)
+        .flatMap((item) => item.categories);
+    }
+
+    return null;
   }
 
   let visibleLegendCategories = $derived.by(getVisibleLegendCategories);
@@ -347,9 +363,9 @@
         {title}
       </h2>
     {/if}
-    {#if legendItems.length}
+    {#if orderedLegendItems.length}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
-        {#each legendItems as item (item.label)}
+        {#each orderedLegendItems as item (item.label)}
           <button
             type="button"
             class="flex items-center gap-2 rounded px-1 py-0.5 font-semibold text-slate-600 transition duration-200 ease-in-out"
