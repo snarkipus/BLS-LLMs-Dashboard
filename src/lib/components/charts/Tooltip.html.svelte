@@ -8,16 +8,23 @@
   };
 
   let { event, offset = -35, children }: Props = $props();
+
+  // Use layer coordinates so the tooltip follows the cursor inside the chart.
+  let layerX = $derived(event?.layerX);
+  let layerY = $derived(event?.layerY);
+  let hasPosition = $derived(layerX !== undefined && layerY !== undefined);
+
+  let tooltipStyle = $derived.by(() => {
+    if (layerX === undefined || layerY === undefined) {
+      return '';
+    }
+
+    return `top: ${layerY + offset}px; left: ${layerX}px;`;
+  });
 </script>
 
-{#if event?.layerX !== undefined && event?.layerY !== undefined}
-  <div
-    class="tooltip"
-    style="
-      top: {event.layerY + offset}px;
-      left: {event.layerX}px;
-    "
-  >
+{#if hasPosition}
+  <div class="tooltip" style={tooltipStyle}>
     {@render children?.()}
   </div>
 {/if}

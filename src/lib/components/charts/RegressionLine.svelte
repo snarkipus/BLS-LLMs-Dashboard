@@ -4,27 +4,41 @@
 
   type Point = { x: number; y: number };
 
+  interface LineCoordinates {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  }
+
   type Props = {
     points: [Point, Point] | null;
     stroke?: string;
     strokeWidth?: number;
   };
 
-  const ctx = getContext<LayerCakeContext<Point>>('LayerCake');
-  const { xScale, yScale } = ctx;
+  // LayerCake context provides reactive scale functions.
+  const layerCake = getContext<LayerCakeContext<Point>>('LayerCake');
+  const { xScale, yScale } = layerCake;
 
   let { points, stroke = '#111827', strokeWidth = 1 }: Props = $props();
 
-  let line = $derived(
-    points
-      ? {
-          x1: $xScale(points[0].x),
-          y1: $yScale(points[0].y),
-          x2: $xScale(points[1].x),
-          y2: $yScale(points[1].y),
-        }
-      : null
-  );
+  function toLineCoordinates(points: [Point, Point] | null): LineCoordinates | null {
+    if (!points) {
+      return null;
+    }
+
+    const [start, end] = points;
+
+    return {
+      x1: $xScale(start.x),
+      y1: $yScale(start.y),
+      x2: $xScale(end.x),
+      y2: $yScale(end.y),
+    };
+  }
+
+  let line = $derived(toLineCoordinates(points));
 </script>
 
 {#if line}

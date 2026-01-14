@@ -2,9 +2,6 @@
   import { getContext } from 'svelte';
   import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext<LayerCakeContext>('LayerCake');
-  const { width, height, xScale } = ctx;
-
   interface Props {
     text?: string;
     offset?: number;
@@ -30,15 +27,69 @@
     ...restProps
   }: Props = $props();
 
-  let tickOffset = $derived(
-    typeof tick === 'number'
-      ? $xScale(tick) + (typeof $xScale.bandwidth === 'function' ? $xScale.bandwidth() / 2 : 0)
-      : null
-  );
-  let titleX = $derived(
-    tickOffset ?? (align === 'left' ? inset : align === 'right' ? $width - inset : $width / 2)
-  );
-  let anchor = $derived(align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle');
+  const layerCake = getContext<LayerCakeContext>('LayerCake');
+  const { width, height, xScale } = layerCake;
+
+  type ScaleLike = {
+    (value: number): number;
+    bandwidth?: () => number;
+  };
+
+  function getScaleBandOffset(scale: ScaleLike): number {
+    if (typeof scale.bandwidth === 'function') {
+      return scale.bandwidth() / 2;
+    }
+
+    return 0;
+  }
+
+  // Center on the tick if provided, accounting for band scales.
+  function getTickOffset(value: number | undefined, scale: ScaleLike): number | null {
+    if (typeof value !== 'number') {
+      return null;
+    }
+
+    return scale(value) + getScaleBandOffset(scale);
+  }
+
+  function getAlignedX(align: Props['align'], inset: number, width: number): number {
+    switch (align) {
+      case 'left':
+        return inset;
+      case 'right':
+        return width - inset;
+      default:
+        return width / 2;
+    }
+  }
+
+  function getTextAnchor(align: Props['align']): 'start' | 'middle' | 'end' {
+    switch (align) {
+      case 'left':
+        return 'start';
+      case 'right':
+        return 'end';
+      default:
+        return 'middle';
+    }
+  }
+
+  let tickOffset = $derived.by(function (): number | null {
+    return getTickOffset(tick, $xScale as ScaleLike);
+  });
+
+  // Fall back to alignment when no specific tick is targeted.
+  let titleX = $derived.by(function (): number {
+    if (tickOffset !== null) {
+      return tickOffset;
+    }
+
+    return getAlignedX(align, inset, $width);
+  });
+
+  let anchor = $derived.by(function (): 'start' | 'middle' | 'end' {
+    return getTextAnchor(align);
+  });
 </script>
 
 {#if text}

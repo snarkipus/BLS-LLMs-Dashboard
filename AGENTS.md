@@ -72,13 +72,14 @@ npm run test:watch path/to/test.test.ts
 
 ### Svelte 5 Runes
 
-- Use `$state()` for reactive state instead of `let` variables
+- Use `$state()` for reactive state; use plain `let` for non-reactive locals
 - Use `$derived()` for computed values instead of `$:` statements
 - Use `$effect()` for side effects (API calls, DOM manipulation) - only run in browser
 - Use `$props()` for component props (destructure: `let { prop } = $props()`)
 - Use `$bindable()` for two-way bound props - use sparingly for predictable data flow
 - Use `$inspect()` for debugging state changes (development only, becomes noop in production)
-- Event handlers: `onclick`, `onchange`, etc. (native events, no `on:` prefix)
+- Event handlers: use event attributes like `onclick`, `onchange` (no `on:` prefix)
+- Component events: use callback props instead of `createEventDispatcher`
 - Use `$derived.by()` for complex derivations that don't fit in a short expression
 - Use `onMount()` for one-time initialization with cleanup on unmount
 - Use `tick()` to ensure DOM is updated before continuing
@@ -114,11 +115,11 @@ npm run test:watch path/to/test.test.ts
 
 ### Naming Conventions
 
-- Components: PascalCase (`BarChart.svelte`, `DataTable.svelte`)
+- Components: PascalCase (`ScatterPlot.svelte`, `DataTable.svelte`)
 - Variables/functions: camelCase (`getUserData`, `isLoading`)
 - Constants: UPPER_SNAKE_CASE (`API_BASE_URL`, `MAX_RETRIES`)
 - Types: PascalCase interfaces (`User`, `ChartData`)
-- Files: kebab-case or PascalCase for components (`bar-chart.svelte`, `BarChart.svelte`)
+- Files: kebab-case or PascalCase for components (`scatter-plot.svelte`, `ScatterPlot.svelte`)
 
 ### Styling
 

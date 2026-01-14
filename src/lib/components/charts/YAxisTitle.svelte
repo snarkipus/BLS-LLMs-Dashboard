@@ -2,8 +2,9 @@
   import { getContext } from 'svelte';
   import type { LayerCakeContext } from '$lib/types/layercake';
 
-  const ctx = getContext<LayerCakeContext>('LayerCake');
-  const { height, width, yRange } = ctx;
+  // LayerCake provides reactive stores for chart dimensions and scales.
+  const layerCake = getContext<LayerCakeContext>('LayerCake');
+  const { height, width, yRange } = layerCake;
 
   interface Props {
     text?: string;
@@ -14,8 +15,7 @@
     fill?: string;
     position?: 'left' | 'right';
     orientation?: 'vertical' | 'horizontal';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   let {
@@ -30,18 +30,43 @@
     ...restProps
   }: Props = $props();
 
-  let rotation = $derived(position === 'right' ? 90 : -90);
-  let titleX = $derived(position === 'right' ? $height / 2 : -$height / 2);
-  let titleY = $derived(position === 'right' ? -($width + offset) : -offset);
+  function getRotation(isRight: boolean): number {
+    return isRight ? 90 : -90;
+  }
 
+  function getTitleX(heightValue: number, isRight: boolean): number {
+    return (isRight ? 1 : -1) * (heightValue / 2);
+  }
+
+  function getTitleY(widthValue: number, offsetValue: number, isRight: boolean): number {
+    return isRight ? -(widthValue + offsetValue) : -offsetValue;
+  }
+
+  function getHorizontalX(widthValue: number, insetValue: number, isRight: boolean): number {
+    return isRight ? widthValue - insetValue : insetValue;
+  }
+
+  function getHorizontalAnchor(isRight: boolean): 'start' | 'end' {
+    return isRight ? 'end' : 'start';
+  }
+
+  let isRight = $derived(position === 'right');
+  let isHorizontal = $derived(orientation === 'horizontal');
+
+  // Vertical title layout uses rotation around the chart center.
+  let rotation = $derived(getRotation(isRight));
+  let titleX = $derived(getTitleX($height, isRight));
+  let titleY = $derived(getTitleY($width, offset, isRight));
+
+  // Horizontal title layout anchors at the top of the y-range.
   let yTop = $derived(Math.min(...$yRange));
-  let horizontalX = $derived(position === 'right' ? $width - inset : inset);
+  let horizontalX = $derived(getHorizontalX($width, inset, isRight));
   let horizontalY = $derived(yTop - offset);
-  let horizontalAnchor = $derived(position === 'right' ? 'end' : 'start');
+  let horizontalAnchor = $derived(getHorizontalAnchor(isRight));
 </script>
 
 {#if text}
-  {#if orientation === 'horizontal'}
+  {#if isHorizontal}
     <text
       x={horizontalX}
       y={horizontalY}
