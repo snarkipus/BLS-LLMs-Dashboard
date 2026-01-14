@@ -7,6 +7,7 @@
 
   import RegressionLine from './RegressionLine.svelte';
   import ScatterPoints from './ScatterPoints.svelte';
+  import RadialLegend from './RadialLegend.svelte';
   import AxisX from './AxisX.svelte';
   import AxisY from './AxisY.svelte';
   import XAxisTitle from './XAxisTitle.svelte';
@@ -28,6 +29,7 @@
     employment?: number;
   };
   type Domain = [number | null, number | null];
+  type RadiusScale = (value: number) => number;
 
   type LegendItem = { label: string; color: string; categories: string[]; key: string };
 
@@ -42,6 +44,15 @@
     xTicks?: number[];
     yTicks?: number[];
     legendItems?: LegendItem[];
+    radiusScale?: RadiusScale;
+    radialLegendScale?: RadiusScale;
+    radialLegendValues?: number[];
+    radialLegendLabel?: string;
+    radialLegendFormat?: (value: number) => string;
+    radialLegendAlign?: 'left' | 'right';
+    radialLegendInset?: number;
+    radialLegendY?: number;
+    radialLegendX?: number;
   };
 
   const CHART_HEIGHT = 600;
@@ -55,25 +66,42 @@
     yLabel = 'Y Axis Title',
     xDomain = [0, 1],
     yDomain = [1, null],
-    xTicks = undefined,
-    yTicks = undefined,
+    xTicks,
+    yTicks,
     legendItems = [],
+    radiusScale,
+    radialLegendScale,
+    radialLegendValues = [],
+    radialLegendLabel = 'Size',
+    radialLegendFormat,
+    radialLegendAlign = 'right',
+    radialLegendInset = 24,
+    radialLegendY = 120,
+    radialLegendX,
   }: Props = $props();
 
   let activeLegendKey = $state<string | null>(null);
   let selectedLegendKeys = $state<string[]>([]);
 
-  function categoriesForKeys(keys: string[]): string[] {
+  function getVisibleLegendCategories(): string[] | null {
+    const keys = selectedLegendKeys.length
+      ? selectedLegendKeys
+      : activeLegendKey
+        ? [activeLegendKey]
+        : null;
+
+    if (!keys) {
+      return null;
+    }
+
     return legendItems.filter((item) => keys.includes(item.key)).flatMap((item) => item.categories);
   }
 
-  let visibleLegendCategories = $derived.by(function getVisibleLegendCategories(): string[] | null {
-    if (selectedLegendKeys.length) return categoriesForKeys(selectedLegendKeys);
-    if (activeLegendKey) return categoriesForKeys([activeLegendKey]);
-    return null;
-  });
+  let visibleLegendCategories = $derived.by(getVisibleLegendCategories);
 
   let hasLegendSelection = $derived(selectedLegendKeys.length > 0);
+  let resolvedLegendScale = $derived(radialLegendScale ?? radiusScale);
+  let showRadialLegend = $derived(Boolean(resolvedLegendScale && radialLegendValues.length));
 
   function isCategoryVisible(category?: string): boolean {
     if (!visibleLegendCategories) return true;
@@ -172,16 +200,20 @@
     activeLegendKey = null;
   }
 
-  function handleLegendClick(item: LegendItem): void {
-    if (selectedLegendKeys.includes(item.key)) {
-      selectedLegendKeys = selectedLegendKeys.filter((key) => key !== item.key);
+  function toggleLegendKey(key: string): void {
+    if (selectedLegendKeys.includes(key)) {
+      selectedLegendKeys = selectedLegendKeys.filter((item) => item !== key);
     } else {
-      selectedLegendKeys = [...selectedLegendKeys, item.key];
+      selectedLegendKeys = [...selectedLegendKeys, key];
     }
 
     if (!selectedLegendKeys.length) {
       activeLegendKey = null;
     }
+  }
+
+  function handleLegendClick(item: LegendItem): void {
+    toggleLegendKey(item.key);
   }
 
   function clearLegendSelection(): void {
@@ -191,7 +223,15 @@
 
   function getPointRadius(point: unknown): number {
     const dataPoint = point as DataPoint;
-    return dataPoint.r ?? 5;
+    if (typeof dataPoint.r === 'number') {
+      return dataPoint.r;
+    }
+
+    if (radiusScale && typeof dataPoint.employment === 'number') {
+      return radiusScale(dataPoint.employment);
+    }
+
+    return 5;
   }
 
   function getPointFill(point: unknown): string {
@@ -385,6 +425,19 @@
           activeStrokeWidth={1.5}
           activeRadiusOffset={2}
         />
+
+        {#if showRadialLegend}
+          <RadialLegend
+            radiusScale={resolvedLegendScale}
+            values={radialLegendValues}
+            label={radialLegendLabel}
+            format={radialLegendFormat}
+            align={radialLegendAlign}
+            inset={radialLegendInset}
+            y={radialLegendY}
+            x={radialLegendX}
+          />
+        {/if}
 
         <Voronoi onmouseover={handleHover} isVisible={isPointVisible} />
         <XAxisTitle text={xLabelLeft} offset={32} align="left" tick={0} />
