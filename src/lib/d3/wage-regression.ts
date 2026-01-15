@@ -16,6 +16,13 @@ function isValidRegressionPoint(point: LayerCakeChartDatum): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y) && point.y > 0;
 }
 
+/**
+ * Computes a weighted least-squares regression line in log10 wage space.
+ *
+ * @param data - Scatter plot data points.
+ * @param xDomain - Optional domain to clamp regression line endpoints.
+ * @returns Regression line summary, or null when insufficient valid points.
+ */
 export function computeLogWageRegressionLine(
   data: LayerCakeChartDatum[],
   xDomain: Domain
