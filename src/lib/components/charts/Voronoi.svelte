@@ -69,7 +69,7 @@
       d={voronoi.renderCell(i)}
       onmouseover={(event) => handleHover(event, point)}
       onmousemove={(event) => handleHover(event, point)}
-      role="tooltip"
+      aria-hidden="true"
     ></path>
   {/each}
 {/if}

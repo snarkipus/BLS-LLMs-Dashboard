@@ -135,7 +135,7 @@
     compactDisplay: 'short',
   });
 
-  function formatCurrency(value: unknown): string {
+  function formatCompactNumber(value: unknown): string {
     return typeof value === 'number' ? wageFormatter.format(value).toLowerCase() : String(value);
   }
 
@@ -332,7 +332,7 @@
           baseline={true}
           tickMarks={true}
           ticks={yTicks}
-          format={formatCurrency}
+          format={formatCompactNumber}
           position="right"
           labelGutter={6}
         />

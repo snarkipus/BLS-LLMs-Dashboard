@@ -6,6 +6,11 @@
   import type { LayerCakeChartDatum, RadiusScale } from '$lib/types/layercake-chart';
   import type { OccPoint } from '$lib/types/occpoints';
 
+  // Chart axes
+  const xDomain: [number, number] = [-0.1, 1.1];
+  const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+  // Legend + color mapping
   const educationColorMap: Record<string, string> = {
     'Doctoral or professional degree': '#1f77b4',
     "Master's degree": '#1f77b4',
@@ -55,11 +60,38 @@
     return educationColorMap[education] ?? '#94a3b8';
   }
 
+  // Data loading
   const DATA_URL = '/data/oews_2024_gpt_exposure_soc2018.json';
-  const RADIAL_LEGEND_VALUES = [500_000, 100_000, 7_500];
 
-  let occPointData = $state<OccPoint[] | null>(null);
+  let occPointData = $state.raw<OccPoint[] | null>(null);
   let loadError = $state<string | null>(null);
+
+  onMount(async () => {
+    try {
+      const response = await fetch(DATA_URL);
+      if (!response.ok) {
+        throw new Error(`Failed to load data (${response.status} ${response.statusText})`);
+      }
+
+      const json = (await response.json()) as unknown;
+      if (!Array.isArray(json)) {
+        throw new Error('Data format mismatch (expected an array)');
+      }
+
+      // Note: the ETL pipeline validates the row shape and field types.
+      occPointData = json as OccPoint[];
+    } catch (err) {
+      loadError = err instanceof Error ? err.message : String(err);
+    }
+  });
+
+  // Employment-derived sizing + radial legend helpers
+  function getEmploymentValues(): number[] {
+    if (!occPointData) return [];
+    return occPointData.map((point) => point.employment).filter((value) => Number.isFinite(value));
+  }
+
+  const RADIAL_LEGEND_VALUES = [500_000, 100_000, 7_500];
 
   function buildRadialLegendValues(values: number[]): number[] {
     if (!values.length) {
@@ -74,66 +106,23 @@
     ).sort((first, second) => second - first);
   }
 
-  onMount(async () => {
-    try {
-      const response = await fetch(DATA_URL);
-      if (!response.ok) {
-        throw new Error(`Failed to load data (${response.status} ${response.statusText})`);
-      }
-
-      const json = (await response.json()) as unknown;
-      if (!Array.isArray(json)) {
-        throw new Error('Data format mismatch (expected an array)');
-      }
-
-      occPointData = json as OccPoint[];
-    } catch (err) {
-      loadError = err instanceof Error ? err.message : String(err);
-    }
-  });
-
-  const xDomain: [number, number] = [-0.1, 1.1];
-  const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
-
-  function getEmploymentValues(): number[] {
-    if (!occPointData) return [];
-    return occPointData.map((point) => point.employment).filter((value) => Number.isFinite(value));
-  }
-
   function buildEmploymentScale(values: number[], range: [number, number]): RadiusScale | null {
     if (!values.length) return null;
 
     const minEmployment = Math.min(...values);
     const maxEmployment = Math.max(...values);
-    const scale = scaleSqrt().domain([minEmployment, maxEmployment]).range(range);
+    const scale = scaleSqrt<number, number>().domain([minEmployment, maxEmployment]).range(range);
 
-    return (value: number) => scale(value) as number;
+    return (value: number) => scale(value);
   }
 
   let employmentValues = $derived.by(getEmploymentValues);
 
   let radiusScale = $derived.by(() => buildEmploymentScale(employmentValues, [3, 30]));
-
   let radialLegendScale = $derived.by(() => buildEmploymentScale(employmentValues, [4, 52]));
-
   let radialLegendValues = $derived.by(() => buildRadialLegendValues(employmentValues));
 
-  let scatterData = $derived.by((): LayerCakeChartDatum[] => {
-    if (!occPointData || !radiusScale) return [];
-
-    return occPointData.map((point) => ({
-      x: point.exposure_human_gamma,
-      y: point.median_annual_wage,
-      label: point.soc_title,
-      color: getEducationColor(point.education),
-      category: point.education ?? 'Other',
-      r: radiusScale(point.employment),
-      wage: point.median_annual_wage,
-      probability: point.exposure_human_gamma,
-      employment: point.employment,
-    }));
-  });
-
+  // Wage-derived y axis
   let yDerived = $derived.by(() => {
     if (!occPointData) {
       return {
@@ -160,6 +149,23 @@
 
   let yDomain = $derived.by(() => yDerived.yDomain);
   let yTicks = $derived.by(() => yDerived.yTicks);
+
+  // Final chart dataset
+  let scatterData = $derived.by((): LayerCakeChartDatum[] => {
+    if (!occPointData || !radiusScale) return [];
+
+    return occPointData.map((point) => ({
+      x: point.exposure_human_gamma,
+      y: point.median_annual_wage,
+      label: point.soc_title,
+      color: getEducationColor(point.education),
+      category: point.education ?? 'Other',
+      r: radiusScale(point.employment),
+      wage: point.median_annual_wage,
+      probability: point.exposure_human_gamma,
+      employment: point.employment,
+    }));
+  });
 </script>
 
 <div class="min-h-screen bg-gray-50 py-10">
@@ -179,8 +185,8 @@
         <LayerCakeChart
           data={scatterData}
           title="Which Occupations Are Most Exposed to LLMs ... and How Much Do They Pay?"
-          xLabelLeft="← Least likely to be effected"
-          xLabelRight="Most likely to be effected →"
+          xLabelLeft="← Least likely to be affected"
+          xLabelRight="Most likely to be affected →"
           yLabel="Average annual wage"
           {xDomain}
           {yDomain}
