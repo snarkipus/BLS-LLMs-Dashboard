@@ -1,20 +1,10 @@
 <script lang="ts">
-  import { scaleSqrt } from 'd3-scale';
   import { onMount } from 'svelte';
-  import LayerCakeChart from '$lib/components/charts/LayerCakeChart.svelte';
-  import type { OccPoint } from '$lib/types/occpoints';
+  import { scaleSqrt } from 'd3-scale';
 
-  type ScatterDatum = {
-    x: number;
-    y: number;
-    label: string;
-    color: string;
-    category: string;
-    r: number;
-    wage: number;
-    probability: number;
-    employment: number;
-  };
+  import LayerCakeChart from '$lib/components/charts/LayerCakeChart.svelte';
+  import type { LayerCakeChartDatum, RadiusScale } from '$lib/types/layercake-chart';
+  import type { OccPoint } from '$lib/types/occpoints';
 
   const educationColorMap: Record<string, string> = {
     'Doctoral or professional degree': '#1f77b4',
@@ -60,8 +50,10 @@
     },
   ];
 
-  const getEducationColor = (education?: string) =>
-    education ? (educationColorMap[education] ?? '#94a3b8') : '#94a3b8';
+  function getEducationColor(education?: string): string {
+    if (!education) return '#94a3b8';
+    return educationColorMap[education] ?? '#94a3b8';
+  }
 
   const DATA_URL = '/data/oews_2024_gpt_exposure_soc2018.json';
   const RADIAL_LEGEND_VALUES = [500_000, 100_000, 7_500];
@@ -103,32 +95,30 @@
   const xDomain: [number, number] = [-0.1, 1.1];
   const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
 
-  let employmentValues = $derived.by((): number[] => {
+  function getEmploymentValues(): number[] {
     if (!occPointData) return [];
     return occPointData.map((point) => point.employment).filter((value) => Number.isFinite(value));
-  });
+  }
 
-  let radiusScale = $derived.by(() => {
-    if (!employmentValues.length) return null;
+  function buildEmploymentScale(values: number[], range: [number, number]): RadiusScale | null {
+    if (!values.length) return null;
 
-    const minEmployment = Math.min(...employmentValues);
-    const maxEmployment = Math.max(...employmentValues);
+    const minEmployment = Math.min(...values);
+    const maxEmployment = Math.max(...values);
+    const scale = scaleSqrt().domain([minEmployment, maxEmployment]).range(range);
 
-    return scaleSqrt().domain([minEmployment, maxEmployment]).range([3, 30]);
-  });
+    return (value: number) => scale(value) as number;
+  }
 
-  let radialLegendScale = $derived.by(() => {
-    if (!employmentValues.length) return null;
+  let employmentValues = $derived.by(getEmploymentValues);
 
-    const minEmployment = Math.min(...employmentValues);
-    const maxEmployment = Math.max(...employmentValues);
+  let radiusScale = $derived.by(() => buildEmploymentScale(employmentValues, [3, 30]));
 
-    return scaleSqrt().domain([minEmployment, maxEmployment]).range([4, 52]);
-  });
+  let radialLegendScale = $derived.by(() => buildEmploymentScale(employmentValues, [4, 52]));
 
   let radialLegendValues = $derived.by(() => buildRadialLegendValues(employmentValues));
 
-  let scatterData = $derived.by((): ScatterDatum[] => {
+  let scatterData = $derived.by((): LayerCakeChartDatum[] => {
     if (!occPointData || !radiusScale) return [];
 
     return occPointData.map((point) => ({

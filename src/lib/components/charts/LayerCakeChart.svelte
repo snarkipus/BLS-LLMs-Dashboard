@@ -2,6 +2,14 @@
   import { scaleLog } from 'd3-scale';
   import { Html, LayerCake, Svg } from 'layercake';
 
+  import { computeLogWageRegressionLine } from '$lib/d3/wage-regression';
+  import type {
+    Domain,
+    LayerCakeChartDatum,
+    LegendItem,
+    RadiusScale,
+  } from '$lib/types/layercake-chart';
+
   import Tooltip from './Tooltip.html.svelte';
   import Voronoi from './Voronoi.svelte';
 
@@ -17,24 +25,8 @@
    * LayerCake scatter plot wrapper with log-scaled wages.
    * Child components read scales/accessors from LayerCake context.
    */
-  type DataPoint = {
-    x: number;
-    y: number;
-    label?: string;
-    color?: string;
-    category?: string;
-    r?: number;
-    wage?: number;
-    probability?: number;
-    employment?: number;
-  };
-  type Domain = [number | null, number | null];
-  type RadiusScale = (value: number) => number;
-
-  type LegendItem = { label: string; color: string; categories: string[]; key: string };
-
   type Props = {
-    data: Array<DataPoint>;
+    data: Array<LayerCakeChartDatum>;
     title?: string;
     xLabelLeft?: string;
     xLabelRight?: string;
@@ -80,6 +72,7 @@
     radialLegendX,
   }: Props = $props();
 
+  // Legend hover/selection drives category visibility in the chart.
   let activeLegendKey = $state<string | null>(null);
   let selectedLegendKeys = $state<string[]>([]);
 
@@ -181,10 +174,11 @@
     return typeof value === 'number' ? tooltipNumberFormatter.format(value) : 'N/A';
   }
 
-  type HoverPoint = [number, number] & { data?: DataPoint | unknown };
+  type HoverPoint = [number, number] & { data?: LayerCakeChartDatum | unknown };
 
+  // Tooltip state pairs the mouse event with the hovered datum.
   let tooltipEvent = $state<MouseEvent | null>(null);
-  let tooltipData = $state<DataPoint | null>(null);
+  let tooltipData = $state<LayerCakeChartDatum | null>(null);
 
   function resetTooltip(): void {
     tooltipEvent = null;
@@ -192,7 +186,7 @@
   }
 
   function handleHover(event: MouseEvent, point: HoverPoint): void {
-    const dataPoint = (point.data ?? null) as DataPoint | null;
+    const dataPoint = (point.data ?? null) as LayerCakeChartDatum | null;
     if (dataPoint && !isCategoryVisible(dataPoint.category)) {
       resetTooltip();
       return;
@@ -238,7 +232,7 @@
   }
 
   function getPointRadius(point: unknown): number {
-    const dataPoint = point as DataPoint;
+    const dataPoint = point as LayerCakeChartDatum;
     if (typeof dataPoint.r === 'number') {
       return dataPoint.r;
     }
@@ -251,109 +245,23 @@
   }
 
   function getPointFill(point: unknown): string {
-    const dataPoint = point as DataPoint;
+    const dataPoint = point as LayerCakeChartDatum;
     return dataPoint.color ?? '#3b82f6';
   }
 
   function isPointActive(point: unknown): boolean {
-    const dataPoint = point as DataPoint;
+    const dataPoint = point as LayerCakeChartDatum;
     if (!tooltipData?.label) return false;
     return dataPoint.label === tooltipData.label;
   }
 
   function isPointVisible(point: unknown): boolean {
-    const dataPoint = point as DataPoint;
+    const dataPoint = point as LayerCakeChartDatum;
     return isCategoryVisible(dataPoint.category);
   }
 
-  type RegressionPoint = { x: number; y: number };
-  type RegressionResult = {
-    points: [RegressionPoint, RegressionPoint];
-    slope: number;
-    intercept: number;
-    rSquared: number;
-  };
-
-  let regressionLine = $derived.by(function getRegressionLine(): RegressionResult | null {
-    const validPoints = data
-      .filter(
-        (point) =>
-          typeof point.x === 'number' &&
-          typeof point.y === 'number' &&
-          Number.isFinite(point.x) &&
-          Number.isFinite(point.y) &&
-          point.y > 0
-      )
-      .map((point) => ({
-        x: point.x,
-        y: point.y,
-        weight: point.employment ?? 1,
-      }));
-
-    if (validPoints.length < 2) return null;
-
-    const xValues = validPoints.map((point) => point.x);
-    const minX = Math.min(...xValues);
-    const maxX = Math.max(...xValues);
-
-    const xStart = xDomain[0] ?? minX;
-    const xEnd = xDomain[1] ?? maxX;
-
-    // Weighted least squares in log space for log-scaled wages.
-    const logYValues = validPoints.map((point) => ({
-      x: point.x,
-      y: Math.log10(point.y),
-      w: Math.max(point.weight, 0),
-    }));
-
-    let sumW = 0;
-    let sumWX = 0;
-    let sumWY = 0;
-    let sumWXY = 0;
-    let sumWX2 = 0;
-
-    for (const point of logYValues) {
-      sumW += point.w;
-      sumWX += point.w * point.x;
-      sumWY += point.w * point.y;
-      sumWXY += point.w * point.x * point.y;
-      sumWX2 += point.w * point.x * point.x;
-    }
-
-    if (sumW === 0) return null;
-
-    const denominator = sumW * sumWX2 - sumWX * sumWX;
-    if (denominator === 0) return null;
-
-    const slope = (sumW * sumWXY - sumWX * sumWY) / denominator;
-    const intercept = (sumWY - slope * sumWX) / sumW;
-
-    // Weighted R² computed in log space to match the regression fit.
-    const meanY = sumWY / sumW;
-    let totalSumSquares = 0;
-    let residualSumSquares = 0;
-
-    for (const point of logYValues) {
-      totalSumSquares += point.w * Math.pow(point.y - meanY, 2);
-      residualSumSquares += point.w * Math.pow(point.y - (intercept + slope * point.x), 2);
-    }
-
-    const rSquared = totalSumSquares > 0 ? 1 - residualSumSquares / totalSumSquares : 0;
-
-    // Convert back from log10 space for plotting.
-    const startY = Math.pow(10, intercept + slope * xStart);
-    const endY = Math.pow(10, intercept + slope * xEnd);
-
-    return {
-      points: [
-        { x: xStart, y: startY },
-        { x: xEnd, y: endY },
-      ],
-      slope,
-      intercept,
-      rSquared,
-    } satisfies RegressionResult;
-  });
+  // D3 helper computes weighted regression in log space.
+  let regressionLine = $derived.by(() => computeLogWageRegressionLine(data, xDomain));
 </script>
 
 <div class="w-full bg-white p-6 rounded-lg shadow">
@@ -474,17 +382,3 @@
     </LayerCake>
   </div>
 </div>
-
-<style>
-  :global(.layercake-container) {
-    height: 100%;
-    min-height: 600px;
-    width: 100%;
-  }
-
-  :global(.layercake-layout-svg),
-  :global(.layercake-layout-html) {
-    width: 100%;
-    height: 100%;
-  }
-</style>
